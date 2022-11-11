@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 import os
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,7 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG")
+
+DEBUG = os.environ.get('DEBUG')
 
 
 # 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a space between each.
@@ -43,6 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'parser.apps.ParserConfig',
+    'registration.apps.RegistrationConfig',
+
 ]
 
 MIDDLEWARE = [
@@ -86,7 +90,7 @@ DATABASES = {
         'NAME': os.environ.get("NAME"),
         'USER': os.environ.get("USER"),
         'PASSWORD': os.environ.get("PASSWORD"),
-        'HOST': 'db',
+        'HOST': os.environ.get("DB_HOST", default="localhost"),
         'PORT': os.environ.get("PORT"),
     }
 }
