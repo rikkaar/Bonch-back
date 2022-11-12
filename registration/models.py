@@ -1,19 +1,32 @@
 import datetime
 
-from django.db import models
+from django.db import models, connection
 from django.contrib.postgres.fields import ArrayField
 
 
 class Groups(models.Model):
-    group_name = models.CharField(max_length=64)
-    group_faculty = models.ForeignKey("Faculties", on_delete=models.CASCADE)
+    group_name = models.CharField(max_length=64, unique=True)
+    group_faculty = models.ForeignKey("Faculties", on_delete=models.CASCADE, blank=True, null=True)
     end_parse = models.DateField(default=datetime.date(2022, 9, 1))
+    is_parsed = models.BooleanField(default=0)
     group_link = models.CharField(max_length=32, unique=True)
-    program_id = models.ForeignKey("Programs", on_delete=models.CASCADE)
+    program_id = models.ForeignKey("Programs", on_delete=models.CASCADE, blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Группу'
+        verbose_name_plural = 'Группы'
 
 
 class Faculties(models.Model):
-    faculty_name = models.CharField(max_length=32)
+    faculty_name = models.CharField(max_length=32, unique=True)
+
+    def __str__(self):
+        return self.faculty_name
+
+    class Meta:
+        verbose_name = 'Факультет'
+        verbose_name_plural = 'Факультеты'
+
 
 
 class Programs(models.Model):

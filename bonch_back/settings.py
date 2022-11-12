@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'parser.apps.ParserConfig',
     'registration.apps.RegistrationConfig',
-
 ]
 
 MIDDLEWARE = [
@@ -90,7 +89,7 @@ DATABASES = {
         'NAME': os.environ.get("NAME"),
         'USER': os.environ.get("USER"),
         'PASSWORD': os.environ.get("PASSWORD"),
-        'HOST': os.environ.get("DB_HOST", default="localhost"),
+        'HOST': os.environ.get("HOST"),
         'PORT': os.environ.get("PORT"),
     }
 }
@@ -117,9 +116,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
