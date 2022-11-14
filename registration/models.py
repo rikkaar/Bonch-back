@@ -35,7 +35,7 @@ class Programs(models.Model):
 class Classes(models.Model):
     class_name = models.CharField(max_length=128)
     class_audience = models.CharField(max_length=64)
-    class_building = models.CharField(max_length=1)
+    class_building = models.CharField(max_length=1, blank=True, null=True)
     class_type = models.CharField(max_length=32)
     class_date = models.DateField()
     class_start = models.TimeField()
