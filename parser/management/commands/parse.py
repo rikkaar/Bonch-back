@@ -21,7 +21,7 @@ class Parse:
             'Accept-Language': 'ru',
         }
 
-    async def get_page_data(self, session, link, group):
+    async def get_page_data(self, session, link, group, start_parse):
         general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.2 Safari/605.1.15',
@@ -31,23 +31,22 @@ class Parse:
         async with session.get(url=link, headers=headers) as response:
             response_text = await response.text()
             html = Soup(response_text, 'lxml').find(class_='vt244b').contents
-            while len(html) != 0:
-                for week in html:
-                    time = week.find(
-                        class_='vt283').parent.text  # получения тега, содержащего время. Далее разбиваем на два объекта date с началом и концом
-                    end = datetime.datetime.strptime(time[-5::], "%H:%M").time()
-                    start = datetime.datetime.strptime(time[-10:-5], "%H:%M").time()
-                    for day in week.find_all(class_='vt258'):
+            for week in html:
+                time = week.find(
+                    class_='vt283').parent.text  # получения тега, содержащего время. Далее разбиваем на два объекта date с началом и концом
+                end = datetime.datetime.strptime(time[-5::], "%H:%M").time()
+                start = datetime.datetime.strptime(time[-10:-5], "%H:%M").time()
+                for day in week.find_all(class_='vt258'):
+                    try:
                         date_offset = int(day.parent.get('class')[-1][
                                               -1]) - 1  # этот цикл нужен, чтобы иметь возможность добавить два занятия в одну пару
-                        # try:
+                        datepush = start_parse + datetime.timedelta(
+                            days=date_offset)  # дата понедельника + номер текущего дня
                         name = day.find(class_="vt240").text.strip()
                         type = day.find(class_="vt243").text.strip()
                         teachers = day.find(class_="teacher").text.strip().split(' ')
                         teachers = (lambda a, n=2: [' '.join(a[i:i + n]) for i in range(0, len(a), n)])(
                             teachers)  # превращаем в массив учителей
-                        datepush = group.end_parse + datetime.timedelta(
-                            days=date_offset)  # дата понедельника + номер текущего дня
                         place = day.find(class_="vt242").text.strip()
                         place = place.split(':')[1].strip().split(';')
                         aud = place[0]
@@ -70,26 +69,33 @@ class Parse:
                         ).save()
                         # except AttributeError:
                         #     pass
-                group.end_parse += datetime.timedelta(days=7)
-                group.save(update_fields=["end_parse"])
-                # Groups.objects.get(group).update(end_parse=F("end_parse") + datetime.timedelta(days=7))
-
-                async with session.get(url=general_url + group.group_link + '&date=' + str(group.end_parse),
-                                       headers=headers) as response:
-                    response_text = await response.text()
-
-                html = Soup(response_text, 'lxml').find(class_='vt244b').contents
+                    except AttributeError:
+                        print(datepush, group.group_name)
+            # group.end_parse += datetime.timedelta(days=7)
+            # group.save(update_fields=["end_parse"])
+            # Groups.objects.get(group).update(end_parse=F("end_parse") + datetime.timedelta(days=7))
 
     async def gather_data(self):
         async with aiohttp.ClientSession() as session:
             tasks = []
-            for i in range(1, 5):
-                general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
+            general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
+            for i in range(1, 30):
                 group = Groups.objects.get(pk=i)
-                url = general_url + group.group_link + '&date=' + str(group.end_parse)
-                # html = Soup(group_url, 'lxml').find(class_='vt244b').contents
-                task = asyncio.create_task(self.get_page_data(session, url, group))
-                tasks.append(task)
+                end_parse = datetime.datetime(2022, 12, 31)
+                start_parse = datetime.datetime(2022, 9, 1)
+                while end_parse >= start_parse:
+                    url = general_url + group.group_link + '&date=' + str(start_parse)
+                    # html = Soup(group_url, 'lxml').find(class_='vt244b').contents
+                    task = asyncio.create_task(self.get_page_data(session, url, group, start_parse))
+                    tasks.append(task)
+                    start_parse += datetime.timedelta(days=7)
+            # for i in range(1, 5):
+            #     general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
+            #     group = Groups.objects.get(pk=i)
+            #     url = general_url + group.group_link + '&date=' + str(group.end_parse)
+            #     # html = Soup(group_url, 'lxml').find(class_='vt244b').contents
+            #     task = asyncio.create_task(self.get_page_data(session, url, group))
+            #     tasks.append(task)
             await asyncio.gather(*tasks)
 
     def main(self):
@@ -180,10 +186,10 @@ class Command(BaseCommand):
             Parse().groups()
         elif obj == 'classes':
 
-            # starttime = time.time()
-            # Parse().main()
-            Parse().classes()
-            # print(time.time() - starttime)
+            starttime = time.time()
+            Parse().main()
+            # Parse().classes()
+            print(time.time() - starttime)
         else:
             self.stdout.write('wrong arguments')
 

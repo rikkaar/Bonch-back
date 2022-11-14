@@ -33,12 +33,12 @@ class Programs(models.Model):
 
 
 class Classes(models.Model):
-    class_name = models.CharField(max_length=128)
-    class_audience = models.CharField(max_length=64)
+    class_name = models.CharField(max_length=128, blank=True, null=True)
+    class_audience = models.CharField(max_length=64, blank=True, null=True)
     class_building = models.CharField(max_length=1, blank=True, null=True)
-    class_type = models.CharField(max_length=32)
-    class_date = models.DateField()
-    class_start = models.TimeField()
-    class_end = models.TimeField()
-    class_teachers = ArrayField(models.CharField(max_length=64))
-    group_id = models.ForeignKey("Groups", on_delete=models.CASCADE)
+    class_type = models.CharField(max_length=32, blank=True, null=True)
+    class_date = models.DateField(blank=True, null=True)
+    class_start = models.TimeField(blank=True, null=True)
+    class_end = models.TimeField(blank=True, null=True)
+    class_teachers = ArrayField(models.CharField(max_length=64), blank=True, null=True)
+    group_id = models.ForeignKey("Groups", on_delete=models.CASCADE, blank=True, null=True)
