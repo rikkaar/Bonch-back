@@ -8,4 +8,4 @@ class FacultiesAdmin(admin.ModelAdmin):
 
 @admin.register(Groups)
 class GroupsAdmin(admin.ModelAdmin):
-    list_display = ('pk', 'group_name', 'group_faculty', 'end_parse', 'group_link', 'program_id',)
+    list_display = ('pk', 'group_name', 'group_faculty', 'group_link', 'program_id',)

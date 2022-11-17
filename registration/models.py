@@ -7,7 +7,6 @@ from django.contrib.postgres.fields import ArrayField
 class Groups(models.Model):
     group_name = models.CharField(max_length=64, unique=True)
     group_faculty = models.ForeignKey("Faculties", on_delete=models.CASCADE, blank=True, null=True)
-    end_parse = models.DateField(default=datetime.date(2022, 9, 1))
     group_link = models.CharField(max_length=32, unique=True)
     program_id = models.ForeignKey("Programs", on_delete=models.CASCADE, blank=True, null=True)
 
