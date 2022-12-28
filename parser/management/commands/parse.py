@@ -66,13 +66,13 @@ class Parse:
                             place = day.find(class_="vt242").text.strip()   # НЕСТАБИЛЬНО.
                             place = place.split(':')[1].strip().split(';')
                             aud = place[0]
-                            if (len(place) != 1):
-                                if '/' in place[1]: # тогда точно большевики
-                                    building = place[1][-1]
-                                else:   # либо мойка, либо А3
-                                    building = 'k'
-                        except AttributeError:
-                            if (week.find(class_='vt283').text == 'ФЗ'):
+                            if len(place) != 1:
+                                try:
+                                    building = place[1]
+                                except IndexError:
+                                    logging.info(f'{group.group_name, str(datepush)} NO BUILDING:{link}')
+                        except (AttributeError, IndexError) as error:
+                            if week.find(class_='vt283').text == 'ФЗ':
                                 aud = 'Спортивные площадки'
                                 building = None
                                 if name != 'Элективные дисциплины по физической культуре и спорту' and name != 'Физическая культура и спорт':
@@ -133,7 +133,11 @@ class Parse:
             await asyncio.gather(*tasks)
 
     def main(self):
-        asyncio.run(self.gather_data(60, 90))
+        # a = [1, 41, 81, 121, 161, 201, 241, 281, 321, 361, 401, 441, 447]
+        # a = [1, 51, 101, 151, 201, 251, 301, 351, 401, 447]
+        # for i in range(1, len(a)):
+        #     print(a[i - 1], a[i])
+        asyncio.run(self.gather_data(420, 447))
 
     def groups(self):
         general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'

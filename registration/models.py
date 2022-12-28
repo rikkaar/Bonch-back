@@ -32,9 +32,9 @@ class Programs(models.Model):
 
 
 class Classes(models.Model):
-    class_name = models.CharField(max_length=128, blank=True, null=True)
+    class_name = models.CharField(max_length=256, blank=True, null=True)
     class_audience = models.CharField(max_length=64, blank=True, null=True)
-    class_building = models.CharField(max_length=1, blank=True, null=True)
+    class_building = models.CharField(max_length=8, blank=True, null=True)
     class_type = models.CharField(max_length=32, blank=True, null=True)
     class_date = models.DateField(blank=True, null=True)
     class_start = models.TimeField(blank=True, null=True)
