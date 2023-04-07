@@ -5,12 +5,11 @@ import datetime
 from bs4 import BeautifulSoup as Soup
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
-from django.db.utils import DataError, OperationalError
 import asyncio
 import aiohttp
 import logging
 
-from registration.models import Faculties, Groups, Classes
+from server.models import Faculties, Groups, Classes
 
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
@@ -113,10 +112,11 @@ class Parse:
         async with aiohttp.ClientSession() as session:
             tasks = []
             general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
+            credit_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zachetov-studentov-ochnoy-i-vecherney-form-obucheniya'
             for i in range(pfrom, pto):
                 group = Groups.objects.get(pk=i)
-                end_parse = datetime.datetime(2022, 12, 31)
-                start_parse = datetime.datetime.fromisocalendar(2022, datetime.datetime(2022, 9, 1).isocalendar().week, 1)
+                end_parse = datetime.datetime(2023, 4, 7)
+                start_parse = datetime.datetime.fromisocalendar(2023, datetime.datetime(2023, 4, 1).isocalendar().week, 1)
                 while end_parse >= start_parse:
                     url = general_url + group.group_link + '&date=' + str(start_parse)
                     # html = Soup(group_url, 'lxml').find(class_='vt244b').contents
@@ -137,7 +137,7 @@ class Parse:
         # a = [1, 51, 101, 151, 201, 251, 301, 351, 401, 447]
         # for i in range(1, len(a)):
         #     print(a[i - 1], a[i])
-        asyncio.run(self.gather_data(420, 447))
+        asyncio.run(self.gather_data(1, 10))
 
     def groups(self):
         general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
