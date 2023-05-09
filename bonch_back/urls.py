@@ -18,8 +18,8 @@ from django.urls import path, include
 from server.views import *
 
 urlpatterns = [
+    path('', index, name='registration'),  # localhost/registration/
     path('admin/', admin.site.urls),
-    path('registration/', index, name='registration'), #localhost/registration/
 ]
 
 handler404 = pageNotFound

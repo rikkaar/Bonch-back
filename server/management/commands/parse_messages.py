@@ -1,3 +1,5 @@
+import os
+
 import requests
 from django.core.management import BaseCommand
 
@@ -5,8 +7,8 @@ from django.core.management import BaseCommand
 class Command(BaseCommand):
     def handle(self, *args, **options):
         link = 'https://lk.sut.ru/cabinet/lib/autentificationok.php'
-        login = 'rikkaaar@gmail.com',
-        password = 'pH54a9Jtce'
+        login = os.environ.get('TEST_LOGIN')
+        password = os.environ.get('TEST_PASSWORD')
         loginlink = f'https://lk.sut.ru/cabinet/lib/autentificationok.php?users={login}&parole={password}'
         session = requests.Session()
         headers = {
@@ -14,8 +16,8 @@ class Command(BaseCommand):
         }
 
         data = {
-            'users': 'rikkaaar@gmail.com',
-            'parole': 'pH54a9Jtce'
+            'users': os.environ.get('TEST_LOGIN'),
+            'parole': os.environ.get('TEST_PASSWORD')
         }
 
 
@@ -38,11 +40,3 @@ class Command(BaseCommand):
         except requests.exceptions.TooManyRedirects:
             print("нахуй иди")
             pass
-
-
-        # mainrespose = session.get(mainpage, headers=headers).text
-        # print(mainrespose)
-
-
-
-        # print(loginlink)

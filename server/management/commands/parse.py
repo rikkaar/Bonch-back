@@ -4,65 +4,59 @@ import requests
 import datetime
 from bs4 import BeautifulSoup as Soup
 from django.core.management.base import BaseCommand
-from django.db import IntegrityError
+from django.db import IntegrityError, OperationalError
 import asyncio
 import aiohttp
 import logging
 
+from server.utils import getRange
 from server.models import Faculties, Groups, Classes
 
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
-logging.basicConfig(level=logging.DEBUG, filename='parser_log.log', filemode='w', format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(level=logging.DEBUG, filename='parser_log.log', filemode='w',
+                    format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger()
+
 
 class Parse:
     def __init__(self):
         self.session = requests.session()
         self.session.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.2 Safari/605.1.15',
-            'Accept-Language': 'ru',
-        }
-
-    async def get_page_data(self, session, link, group, start_parse):
-        general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
-        headers = {
             'User-Agent': 'Chrome/107.0.0.0 Safari/537.36',
             'Accept-Language': 'ru',
         }
 
-        async with session.get(url=link, headers=headers) as response:
-            response_text = await response.text()   # получаем сухой html-код
-            html = Soup(response_text, 'lxml').find(class_='vt244b').contents    # СТАБИЛЬНО. ищем блок с расписанием, и обращаемся к его потомкам. Если их нет, то html = []
-            for week in html: # если есть хотя бы одна пара, то цикл запустится, если поле пустое, то ничего не произойдет
-                time = week.find(class_='vt283').parent.text  # СТАБИЛЬНО. получения тега, содержащего время. Далее разбиваем на два объекта date с началом и концом пары
+    async def get_page_data(self, session, link, group, start_parse):
+        async with session.get(url=link, headers=self.session.headers) as response:
+            response_text = await response.text()  # получаем сухой html-код
+            html = Soup(response_text, 'lxml').find(
+                class_='vt244b').contents  # СТАБИЛЬНО. ищем блок с расписанием, и обращаемся к его потомкам. Если их нет, то html = []
+            for week in html:  # если есть хотя бы одна пара, то цикл запустится, если поле пустое, то ничего не произойдет
+                time = week.find(
+                    class_='vt283').parent.text  # СТАБИЛЬНО. получения тега, содержащего время. Далее разбиваем на два объекта date с началом и концом пары
                 end = datetime.datetime.strptime(time[-5::], "%H:%M").time()
                 start = datetime.datetime.strptime(time[-10:-5], "%H:%M").time()
-                for day in week.find_all(class_='vt258'):   # СТАБИЛЬНО.
+                for day in week.find_all(class_='vt258'):  # СТАБИЛЬНО.
                     try:
-                        date_offset = int(day.parent.get('class')[-1][-1]) - 1  # СТАБИЛЬНО. ['vt239', 'rasp-day', 'rasp-day1'] это особенность bs4.
-                        datepush = start_parse + datetime.timedelta(days=date_offset)  # дата понедельника + номер текущего дня
-                        name = day.find(class_="vt240").text.strip()    # +-СТАБИЛЬНО.
-                        type = day.find(class_="vt243").text.strip()    # +-СТАБИЛЬНО - выбирается из списка. Врядли можно не выбрать, хотя....
+                        date_offset = int(day.parent.get('class')[-1][
+                                              -1]) - 1  # СТАБИЛЬНО. ['vt239', 'rasp-day', 'rasp-day1'] это особенность bs4.
+                        datepush = start_parse + datetime.timedelta(
+                            days=date_offset)  # дата понедельника + номер текущего дня
+                        name = day.find(class_="vt240").text.strip()  # +-СТАБИЛЬНО.
+                        type = day.find(
+                            class_="vt243").text.strip()  # +-СТАБИЛЬНО - выбирается из списка. Врядли можно не выбрать, хотя....
                         try:
-                            teachers = day.find(class_="teacher").text.strip().split(' ')   # НЕСТАБИЛЬНО.
-                            teachers = (lambda a, n=2: [' '.join(a[i:i + n]) for i in range(0, len(a), n)])(teachers)  # превращаем в массив учителей
+                            teachers = day.find(class_="teacher").text.strip().split(' ')  # НЕСТАБИЛЬНО.
+                            teachers = (lambda a, n=2: [' '.join(a[i:i + n]).replace(";", '') for i in range(0, len(a), n)])(
+                                teachers)  # превращаем в массив учителей
                         except AttributeError:
                             teachers = []
                             if name != 'Военная подготовка' and name != 'Строевая подготовка':
                                 logging.info(f'{group.group_name, str(datepush)} ERROR, got []:{link}')
-                        # place = day.find(class_="vt242").text.strip()  # НЕСТАБИЛЬНО.
-                        # place = place.split(':')[1].strip().split(';')
-                        # aud = place[0]
-                        # building = None
-                        # if (len(place) == 2):
-                        #     if '/' in place[1]:
-                        #         building = place[1][-1]
-                        #     else:
-                        #         building = 'k'
                         try:
                             building = None
-                            place = day.find(class_="vt242").text.strip()   # НЕСТАБИЛЬНО.
+                            place = day.find(class_="vt242").text.strip()  # НЕСТАБИЛЬНО.
                             place = place.split(':')[1].strip().split(';')
                             aud = place[0]
                             if len(place) != 1:
@@ -82,7 +76,7 @@ class Parse:
                                 if name != 'Военная подготовка' and name != 'Строевая подготовка':
                                     logging.info(f'{group.group_name, str(datepush)} ERROR, not FZ:{link}')
                         try:
-                            Classes(
+                            obj, created = Classes.objects.get_or_create(
                                 class_name=name,
                                 class_audience=aud,
                                 class_building=building,
@@ -92,52 +86,37 @@ class Parse:
                                 class_end=end,
                                 class_teachers=teachers,
                                 group_id=group,
-                            ).save()
+                            )
+                            # if created:
+                            #    logging.info(f'{"Создана запись с id", obj.id, ". Дата: ", str(datepush)}')
                         except UnboundLocalError:
                             logging.exception('DataError')
-                            logging.info(f'{group.group_name, str(datepush), day}')
-                            pass
-                        # except AttributeError:
-                        #     pass
+                            logging.error(f'{group.group_name, str(datepush), day}')
+                        # except OperationalError:
+                        #     logging.error(f'{"OperationalError"}')
                     except AttributeError:
                         print(datepush, group.group_name)
                         logging.exception('AttributeError')
                         logging.info(f'{group.group_name, str(datepush), day}')
 
-            # group.end_parse += datetime.timedelta(days=7)
-            # group.save(update_fields=["end_parse"])
-            # Groups.objects.get(group).update(end_parse=F("end_parse") + datetime.timedelta(days=7))
-
-    async def gather_data(self, pfrom, pto):
+    async def gather_data(self, pfrom, pto, start_parse, end_parse):
+        # print(pfrom, pto, start_parse, end_parse)
         async with aiohttp.ClientSession() as session:
             tasks = []
             general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
-            credit_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zachetov-studentov-ochnoy-i-vecherney-form-obucheniya'
-            for i in range(pfrom, pto):
+            for i in range(pfrom, pto + 1): # Мы собираем все Группы от и до какого-то id. ЕСЛИ УКАЗАТЬ ДВА ОДИНАКОВЫХ ЗНАЧЕНИЯ, ТО БУДЕТ ПАРСИНГ ОДНОЙ КОНКРЕТНОЙ ГРУППЫ
                 group = Groups.objects.get(pk=i)
-                end_parse = datetime.datetime(2023, 4, 7)
-                start_parse = datetime.datetime.fromisocalendar(2023, datetime.datetime(2023, 4, 1).isocalendar().week, 1)
-                while end_parse >= start_parse:
-                    url = general_url + group.group_link + '&date=' + str(start_parse)
-                    # html = Soup(group_url, 'lxml').find(class_='vt244b').contents
-                    task = asyncio.create_task(self.get_page_data(session, url, group, start_parse))
+                while_start_parse = start_parse
+                while end_parse >= while_start_parse:
+                    url = general_url + group.group_link + '&date=' + str(while_start_parse)
+                    task = asyncio.create_task(self.get_page_data(session, url, group, while_start_parse))
                     tasks.append(task)
-                    start_parse += datetime.timedelta(days=7)
-            # for i in range(1, 5):
-            #     general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
-            #     group = Groups.objects.get(pk=i)
-            #     url = general_url + group.group_link + '&date=' + str(group.end_parse)
-            #     # html = Soup(group_url, 'lxml').find(class_='vt244b').contents
-            #     task = asyncio.create_task(self.get_page_data(session, url, group))
-            #     tasks.append(task)
+                    while_start_parse += datetime.timedelta(days=7)
             await asyncio.gather(*tasks)
 
-    def main(self):
-        # a = [1, 41, 81, 121, 161, 201, 241, 281, 321, 361, 401, 441, 447]
-        # a = [1, 51, 101, 151, 201, 251, 301, 351, 401, 447]
-        # for i in range(1, len(a)):
-        #     print(a[i - 1], a[i])
-        asyncio.run(self.gather_data(1, 10))
+    def main(self, gfrom, gto, tfrom, tto):
+        print("FROM MAIN FUNCTION", gfrom, gto, tfrom, tto)
+        getRange.getRange(gfrom, gto, tfrom, tto, self.gather_data)
 
     def groups(self):
         general_url = 'https://www.sut.ru/studentu/raspisanie/raspisanie-zanyatiy-studentov-ochnoy-i-vecherney-form-obucheniya'
@@ -217,16 +196,57 @@ class Parse:
 class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('obj', type=str, help='Choose the object of parsing: groups, classes')
+        parser.add_argument('-gfrom', type=int, default=1)
+        parser.add_argument('-gto', type=int)
+        parser.add_argument('-tfrom', type=str)
+        parser.add_argument('-tto', type=str)
+        parser.add_argument('-group', type=str)
+        parser.add_argument('-time', type=str)
 
     def handle(self, *args, **options):
+        gfrom = options['gfrom']
+        gto = options['gto']
+        tfrom = options['tfrom']
+        tto = options['tto']
+
+        group = options['group']
+        timeq = options['time']
+
         obj = options['obj']
         if obj == 'groups':
             Parse().groups()
         elif obj == 'classes':
-
             starttime = time.time()
-            Parse().main()
-            # Parse().classes()
+            if group:
+                if group == "all":
+                    gto = 'all'
+
+                else: gfrom, gto = group, group
+            if timeq:
+                if timeq == 'all':
+                    if (datetime.datetime.now().month <= 7):
+                        tfrom = datetime.date(datetime.datetime.now().year, 2, 1)
+                        tto = datetime.date(datetime.datetime.now().year, 8, 1)
+                    else:
+                        tfrom = datetime.date(datetime.datetime.now().year, 9, 1)
+                        tto = datetime.date(datetime.datetime.now().year, 2, 1)
+                else:
+                    tfrom, tto = timeq, timeq
+                    tto = datetime.datetime.strptime(tto,
+                                                     '%Y-%m-%d').date()  # Выбираем либо дефолтное (конец года?), либо парсим то, что указано пользователем
+                    tfrom = datetime.datetime.strptime(tfrom, '%Y-%m-%d').date()
+                    tfrom = datetime.datetime.fromisocalendar(tfrom.year, tfrom.isocalendar().week,
+                                                              1).date()  # выбор понедельника для выбранной недели начала парсинга
+
+
+            else:
+                tto = datetime.datetime.strptime(tto,
+                                             '%Y-%m-%d').date()  # Выбираем либо дефолтное (конец года?), либо парсим то, что указано пользователем
+                tfrom = datetime.datetime.strptime(tfrom, '%Y-%m-%d').date()
+                tfrom = datetime.datetime.fromisocalendar(tfrom.year, tfrom.isocalendar().week,
+                                                      1).date()  # выбор понедельника для выбранной недели начала парсинга
+
+            Parse().main(gfrom, gto, tfrom, tto)
             print(time.time() - starttime)
         else:
             self.stdout.write('wrong arguments')
